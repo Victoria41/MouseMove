@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <button id="export">Export</button>
+
+
+
+
+    <script type="module">
+
+        import * as THREE from './build/three.module.js';
+        import {GLTFLoader} from './GLTFLoader.js';
+        import {GLTFExporter} from './GLTFExporter.js';
+        import {OrbitControls} from './OrbitControls.js';
+        import {GUI} from './dat.gui.module.js';
+
+
+
+        let camera, scene, renderer, model, gui;
+
+        init();
+        
+        
+        function init(){
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight,1, 3000);
+            camera.position.set(100, 10, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true } );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+            document.addEventListener( 'mousemove', Mouse, false );
+
+            let controler = new OrbitControls(camera, renderer.domElement);
+
+            var light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+            scene.add( light );
+
+            let ambLigth =  new THREE.AmbientLight( 0x404040 ); // soft white light
+            scene.add( ambLigth );
+
+            let modelLoader = new  GLTFLoader();
+            modelLoader.load('model/scene.gltf', function(gltf){
+                model = gltf.scene;
+                scene.add(model);
+                model.scale.set(10, 10, 10);                
+            })
+
+            let arr = {
+                width: 10,
+                height: 10,
+                length: 10,
+                metaliness: 0,
+                roughness: 0
+            }
+
+            gui = new GUI();
+            let size = gui.addFolder("Size");
+            size.add(arr, 'width', 10, 20).step(1).onChange(function(val){
+                model.scale.x = val
+            })
+            size.add(arr, "height", 10, 20).step(1).onChange(function(val){
+                model.scale.y = val
+            })
+            size.add(arr, "length", 10, 20).step(1).onChange(function(val){
+                model.scale.z = val
+            })
+
+            let metallic = gui.addFolder("metallic");
+            metallic.add(arr, 'metaliness', 0,1).step(0.1).onChange(function(val){
+                model.traverse(function(item){
+                    console.log(item)
+                    if(item.isMesh){
+                        item.material.metalness = val;
+                        
+                    }
+
+                })
+                
+            })
+            let roughness = gui.addFolder("Roughness");
+            roughness.add(arr, 'roughness', 0, 1).step(0.1).onChange(function(val){
+                model.traverse(function(item){
+                    if(item.isMesh){
+                        item.material.roughness = val
+                    }
+                })
+            })
+
+
+            
+        
+            function exportGltf(){
+                let exporter = new GLTFExporter(model);
+                let options = {
+                    binary:true
+                }
+                exporter.parse(model, function(result){
+                    let output = JSON.stringify( result, null, 2 );
+                    saveString( output, 'scene.gltf' );
+                }),
+                options
+
+            }
+            document.getElementById("export").addEventListener("click", function(){ exportGltf(model)});
+
+            var link = document.createElement( 'a' );
+            link.style.display = 'none';
+            document.body.appendChild( link );
+            function save( blob, filename ) {
+                link.href = URL.createObjectURL( blob );
+                link.download = filename;
+                link.click();
+             }
+
+            function saveString( text, filename ) {
+            save( new Blob( [ text ], { type: 'text/plain' } ), filename );
+
+            }
+
+
+            let raycaster = new THREE.Raycaster();
+            let mouse = new THREE.Vector2();
+
+			function Mouse( event ) {
+
+                event.preventDefault();
+                mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+                raycaster.setFromCamera( mouse, camera );
+                var intersects = raycaster.intersectObjects(model);
+                    model?.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                
+                animation();
+
+            }
+
+
+
+            
+        }
+
+
+        function animation(){
+            // requestAnimationFrame(animation);
+            renderer.render(scene, camera);
+            
+
+        }
+
+        animation()
+
+    </script>
+</body>
+</html>
